@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Poster Maker</title>
+
+<style>
+@font-face {
+  font-family: 'Malayalam';
+  src: url('fonts/NotoSansMalayalam-Regular.ttf');
+}
+
+body{
+  font-family: Arial, sans-serif;
+  background:#f2f2f2;
+  padding:10px;
+}
+input, select, button{
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  font-size:16px;
+}
+button{
+  background:#0a7cff;
+  color:white;
+  border:none;
+  border-radius:6px;
+}
+hr{margin:10px 0;}
+img{width:100%; margin-top:10px;}
+canvas{display:none;}
+</style>
+</head>
+
+<body>
+
+<h3>🖼️ Daily Price Poster Maker</h3>
+
+<!-- HEADER OPTIONS -->
+<select id="headerType">
+  <option value="image">Image Header (KEFAMCO)</option>
+  <option value="classic">Classic Header</option>
+  <option value="curve">Curved Header</option>
+</select>
+
+<select id="footerType">
+  <option value="delivery">Delivery Footer</option>
+  <option value="simple">Simple Footer</option>
+</select>
+
+<select id="bgColor">
+  <option value="#ffffff">White</option>
+  <option value="#e3f2fd">Blue</option>
+  <option value="#e8f5e9">Green</option>
+  <option value="#fce4ec">Pink</option>
+</select>
+
+<hr>
+
+<!-- ITEM INPUT -->
+<input type="file" id="photo" accept="image/*" capture="environment">
+
+<input list="mlList" id="nameML" placeholder="ഇനത്തിന്റെ പേര് (Malayalam)">
+<datalist id="mlList"></datalist>
+
+<input list="enList" id="nameEN" placeholder="Item Name (English)">
+<datalist id="enList"></datalist>
+
+<input id="price" placeholder="വില (₹ / Kg)">
+
+<button onclick="addItem()">➕ Add Item</button>
+
+<hr>
+
+<button onclick="generatePoster()">🖼️ Generate JPG</button>
+<button onclick="shareWhatsApp()">📤 Share WhatsApp</button>
+
+<img id="preview">
+
+<canvas id="canvas" width="900" height="1200"></canvas>
+
+<script>
+let items = [];
+let posterURL = "";
+
+/* ===== PRE-LIST STORAGE ===== */
+let preList = JSON.parse(localStorage.getItem("itemPreList")) || [];
+
+const mlList = document.getElementById("mlList");
+const enList = document.getElementById("enList");
+
+function refreshPreList(){
+  mlList.innerHTML = "";
+  enList.innerHTML = "";
+  preList.forEach(it=>{
+    mlList.innerHTML += `<option value="${it.ml}">`;
+    enList.innerHTML += `<option value="${it.en}">`;
+  });
+}
+refreshPreList();
+
+/* ===== ADD ITEM ===== */
+function addItem(){
+  const ml = nameML.value.trim();
+  const en = nameEN.value.trim();
+  const price = document.getElementById("price").value.trim();
+  const photo = document.getElementById("photo").files[0];
+
+  if(!ml || !en || !price || !photo){
+    alert("എല്ലാ വിവരങ്ങളും നൽകുക");
+    return;
+  }
+
+  // Save to poster list
+  items.push({ml,en,price,photo});
+
+  // Save to PRE-LIST if new
+  if(!preList.find(i=>i.ml===ml && i.en===en)){
+    preList.push({ml,en});
+    localStorage.setItem("itemPreList", JSON.stringify(preList));
+    refreshPreList();
+  }
+
+  nameML.value = "";
+  nameEN.value = "";
+  price.value = "";
+  alert("Item Added");
+}
+
+/* ===== HEADER ===== */
+function drawHeader(ctx, type, done){
+  if(type === "image"){
+    const hImg = new Image();
+    hImg.onload = ()=>{ ctx.drawImage(hImg,0,0,900,200); done(200); };
+    hImg.src = "header.jpg";
+  }
+  if(type === "classic"){
+    ctx.fillStyle="#0a7cff";
+    ctx.fillRect(0,0,900,120);
+    ctx.fillStyle="#fff";
+    ctx.font="bold 38px Arial";
+    ctx.fillText("Daily Fresh Items",30,75);
+    done(120);
+  }
+  if(type === "curve"){
+    ctx.fillStyle="#0a7cff";
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(900,0);
+    ctx.lineTo(900,90);
+    ctx.quadraticCurveTo(450,160,0,90);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle="#fff";
+    ctx.font="bold 36px Arial";
+    ctx.fillText("Daily Fresh Items",30,70);
+    done(120);
+  }
+}
+
+/* ===== FOOTER ===== */
+function drawFooter(ctx, type){
+  if(type==="delivery"){
+    ctx.fillStyle="#333";
+    ctx.fillRect(0,1100,900,100);
+    ctx.fillStyle="#fff";
+    ctx.font="32px Arial";
+    ctx.fillText("🛵 ഫ്രീ ഹോം ഡെലിവറി",260,1160);
+  }
+  if(type==="simple"){
+    ctx.fillStyle="#e0e0e0";
+    ctx.fillRect(0,1100,900,100);
+  }
+}
+
+/* ===== POSTER ===== */
+function generatePoster(){
+  if(items.length===0){
+    alert("Item add ചെയ്യുക");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = bgColor.value;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  drawHeader(ctx, headerType.value, function(startY){
+    ctx.fillStyle="#000";
+    ctx.font="24px Arial";
+    ctx.fillText(new Date().toLocaleDateString("en-GB"),720,40);
+
+    let y = startY + 20;
+
+    const drawItem = (i)=>{
+      if(i>=items.length){
+        drawFooter(ctx, footerType.value);
+        posterURL = canvas.toDataURL("image/jpeg",1);
+        preview.src = posterURL;
+        return;
+      }
+      const it = items[i];
+      const img = new Image();
+      img.onload = ()=>{
+        ctx.drawImage(img,30,y,200,150);
+        ctx.font="bold 36px Malayalam";
+        ctx.fillText(it.ml,260,y+50);
+        ctx.font="26px Arial";
+        ctx.fillText(it.en,260,y+90);
+        ctx.font="bold 30px Arial";
+        ctx.fillText("₹ "+it.price,260,y+130);
+        y += 180;
+        drawItem(i+1);
+      };
+      img.src = URL.createObjectURL(it.photo);
+    };
+    drawItem(0);
+  });
+}
+
+/* ===== WHATSAPP ===== */
+function shareWhatsApp(){
+  if(!posterURL){
+    alert("Poster generate ചെയ്യുക");
+    return;
+  }
+  window.open("https://wa.me/?text=Today's Price List");
+}
+</script>
+
+</body>
+</html>
