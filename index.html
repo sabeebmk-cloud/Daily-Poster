@@ -54,7 +54,7 @@ canvas{display:none;}
 
 <img id="preview">
 
-<canvas id="canvas" width="1200"></canvas>
+<canvas id="canvas" width="800"></canvas>
 
 <script>
 let items = [];
@@ -107,15 +107,15 @@ function addItem(){
   alert("Item Added");
 }
 
-/* GENERATE POSTER WITH AUTO HEIGHT */
+/* GENERATE POSTER (WIDTH 800px, AUTO HEIGHT) */
 function generatePoster(){
 
-  /* LAYOUT CONSTANTS */
-  const canvasWidth = 1200;
-  const headerHeight = 280;
-  const footerHeight = 120;
-  const itemBlockHeight = 340;
-  const topMargin = 80;
+  /* LAYOUT CONSTANTS (800px WIDTH) */
+  const canvasWidth = 800;
+  const headerHeight = 200;
+  const footerHeight = 100;
+  const itemBlockHeight = 260;
+  const topMargin = 60;
 
   const totalHeight =
     headerHeight +
@@ -139,16 +139,16 @@ function generatePoster(){
     /* HEADER */
     ctx.drawImage(hImg,0,0,canvasWidth,headerHeight);
 
-    /* DATE OVER HEADER (RIGHT) */
+    /* DATE OVER HEADER (RIGHT OVERLAY) */
     const dateText = new Date().toLocaleDateString("en-GB");
 
     ctx.fillStyle="rgba(0,0,0,0.55)";
-    ctx.fillRect(canvasWidth-320,20,300,60);
+    ctx.fillRect(canvasWidth-230,15,215,48);
 
     ctx.fillStyle="#fff";
-    ctx.font="bold 32px Arial";
+    ctx.font="bold 22px Arial";
     ctx.textAlign="center";
-    ctx.fillText(dateText, canvasWidth-170, 62);
+    ctx.fillText(dateText, canvasWidth-122, 47);
     ctx.textAlign="left";
 
     let y = headerHeight + topMargin;
@@ -161,11 +161,11 @@ function generatePoster(){
         ctx.fillRect(0,canvas.height-footerHeight,canvasWidth,footerHeight);
 
         ctx.fillStyle="#fff";
-        ctx.font="34px Arial";
+        ctx.font="22px Arial";
         ctx.fillText(
           "📞 ഹോം ഡെലിവറിക്കായി 9846 606 609 എന്ന നമ്പറിൽ വിളിക്കുക",
-          120,
-          canvas.height - 45
+          40,
+          canvas.height - 35
         );
 
         posterURL = canvas.toDataURL("image/jpeg",1.0);
@@ -176,19 +176,19 @@ function generatePoster(){
       const it = items[i];
       const img = new Image();
       img.onload = ()=>{
-        /* ITEM IMAGE */
-        ctx.drawImage(img,40,y,420,300);
+        /* ITEM IMAGE (BIG & CLEAR) */
+        ctx.drawImage(img,20,y,300,220);
 
         /* TEXT */
-        ctx.font="bold 44px Malayalam";
+        ctx.font="bold 32px Malayalam";
         ctx.fillStyle="#000";
-        ctx.fillText(it.ml,500,y+90);
+        ctx.fillText(it.ml,350,y+70);
 
-        ctx.font="30px Arial";
-        ctx.fillText(it.en,500,y+140);
+        ctx.font="22px Arial";
+        ctx.fillText(it.en,350,y+110);
 
-        ctx.font="bold 36px Arial";
-        ctx.fillText("₹ "+it.price,500,y+210);
+        ctx.font="bold 26px Arial";
+        ctx.fillText("₹ "+it.price,350,y+165);
 
         y += itemBlockHeight;
         drawItem(i+1);
