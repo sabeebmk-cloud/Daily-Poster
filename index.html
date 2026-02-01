@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Daily Poster Maker</title>
+<title>Daily Price Poster Maker</title>
 
 <style>
 @font-face {
   font-family: 'Malayalam';
   src: url('fonts/NotoSansMalayalam-Regular.ttf');
 }
-
 body{
   font-family: Arial, sans-serif;
   background:#f2f2f2;
@@ -24,12 +23,29 @@ input, button{
 }
 button{
   background:#0a7cff;
-  color:white;
+  color:#fff;
   border:none;
   border-radius:6px;
 }
+.list-item{
+  background:#fff;
+  padding:8px;
+  margin:6px 0;
+  border-radius:6px;
+  font-size:14px;
+}
+.list-item b{
+  font-family: Malayalam;
+}
+.list-actions button{
+  width:auto;
+  padding:6px 10px;
+  font-size:14px;
+  margin-right:5px;
+}
 img{width:100%; margin-top:10px;}
 canvas{display:none;}
+.small{font-size:13px;color:#555;}
 </style>
 </head>
 
@@ -39,14 +55,25 @@ canvas{display:none;}
 
 <input type="file" id="photo" accept="image/*" capture="environment">
 
+<!-- MALAYALAM SELECT -->
 <input list="mlList" id="nameML" placeholder="ഇനത്തിന്റെ പേര് (Malayalam)">
 <datalist id="mlList"></datalist>
 
+<!-- ENGLISH AUTO -->
 <input id="nameEN" placeholder="Item Name (English)">
 
+<!-- PRICE (NOT STORED ANYWHERE) -->
 <input id="price" placeholder="വില (₹ / Kg)">
 
 <button onclick="addItem()">➕ Item Add ചെയ്യുക</button>
+<div class="small">
+ℹ️ Price pre-list-ൽ save ആവില്ല. ഓരോ ദിവസവും type ചെയ്യണം.
+</div>
+
+<hr>
+
+<h4>📋 Added Items</h4>
+<div id="itemList"></div>
 
 <hr>
 
@@ -54,19 +81,22 @@ canvas{display:none;}
 
 <img id="preview">
 
-<canvas id="canvas" width="800"></canvas>
+<canvas id="canvas"></canvas>
 
 <script>
 let items = [];
 let posterURL = "";
 
-/* ===== PRE-LIST ===== */
+/* ===== PRE-LIST (NAME ONLY) ===== */
 let preList = JSON.parse(localStorage.getItem("itemPreList")) || [];
 
 const mlInput = document.getElementById("nameML");
 const enInput = document.getElementById("nameEN");
+const priceInput = document.getElementById("price");
 const mlList = document.getElementById("mlList");
+const itemListDiv = document.getElementById("itemList");
 
+/* REFRESH MALAYALAM LIST */
 function refreshPreList(){
   mlList.innerHTML = "";
   preList.forEach(it=>{
@@ -75,17 +105,17 @@ function refreshPreList(){
 }
 refreshPreList();
 
-/* AUTO FILL ENGLISH */
+/* AUTO FILL ENGLISH (PRICE NOT TOUCHED) */
 mlInput.addEventListener("change", ()=>{
-  const f = preList.find(i=>i.ml === mlInput.value);
-  enInput.value = f ? f.en : "";
+  const found = preList.find(i=>i.ml === mlInput.value);
+  enInput.value = found ? found.en : "";
 });
 
 /* ADD ITEM */
 function addItem(){
   const ml = mlInput.value.trim();
   const en = enInput.value.trim();
-  const price = document.getElementById("price").value.trim();
+  const price = priceInput.value.trim();
   const photo = document.getElementById("photo").files[0];
 
   if(!ml || !en || !price || !photo){
@@ -93,8 +123,10 @@ function addItem(){
     return;
   }
 
+  /* ADD TO CURRENT POSTER ITEMS (PRICE TEMP ONLY) */
   items.push({ml,en,price,photo});
 
+  /* SAVE ONLY NAME PAIR TO PRE-LIST */
   if(!preList.find(i=>i.ml === ml)){
     preList.push({ml,en});
     localStorage.setItem("itemPreList", JSON.stringify(preList));
@@ -103,19 +135,58 @@ function addItem(){
 
   mlInput.value = "";
   enInput.value = "";
-  price.value = "";
-  alert("Item Added");
+  priceInput.value = "";
+  document.getElementById("photo").value = "";
+
+  renderItemList();
 }
 
-/* GENERATE POSTER (WIDTH 800px, AUTO HEIGHT) */
+/* RENDER ITEM LIST */
+function renderItemList(){
+  itemListDiv.innerHTML = "";
+  items.forEach((it, i)=>{
+    const div = document.createElement("div");
+    div.className = "list-item";
+    div.innerHTML = `
+      <b>${it.ml}</b> – ${it.en} – ₹${it.price}
+      <div class="list-actions">
+        <button onclick="moveUp(${i})">⬆️</button>
+        <button onclick="moveDown(${i})">⬇️</button>
+        <button onclick="deleteItem(${i})">❌</button>
+      </div>
+    `;
+    itemListDiv.appendChild(div);
+  });
+}
+
+/* DELETE ITEM */
+function deleteItem(index){
+  items.splice(index,1);
+  renderItemList();
+}
+
+/* MOVE UP */
+function moveUp(index){
+  if(index===0) return;
+  [items[index-1], items[index]] = [items[index], items[index-1]];
+  renderItemList();
+}
+
+/* MOVE DOWN */
+function moveDown(index){
+  if(index===items.length-1) return;
+  [items[index+1], items[index]] = [items[index], items[index+1]];
+  renderItemList();
+}
+
+/* GENERATE POSTER (750px WIDTH, AUTO HEIGHT) */
 function generatePoster(){
 
-  /* LAYOUT CONSTANTS (800px WIDTH) */
-  const canvasWidth = 800;
-  const headerHeight = 200;
-  const footerHeight = 100;
-  const itemBlockHeight = 260;
-  const topMargin = 60;
+  const canvasWidth = 750;
+  const headerHeight = 190;
+  const footerHeight = 90;
+  const itemBlockHeight = 250;
+  const topMargin = 50;
 
   const totalHeight =
     headerHeight +
@@ -139,32 +210,30 @@ function generatePoster(){
     /* HEADER */
     ctx.drawImage(hImg,0,0,canvasWidth,headerHeight);
 
-    /* DATE OVER HEADER (RIGHT OVERLAY) */
+    /* DATE – CENTER OVER HEADER */
     const dateText = new Date().toLocaleDateString("en-GB");
-
     ctx.fillStyle="rgba(0,0,0,0.55)";
-    ctx.fillRect(canvasWidth-230,15,215,48);
+    ctx.fillRect((canvasWidth-220)/2,20,220,44);
 
     ctx.fillStyle="#fff";
     ctx.font="bold 22px Arial";
     ctx.textAlign="center";
-    ctx.fillText(dateText, canvasWidth-122, 47);
+    ctx.fillText(dateText, canvasWidth/2, 50);
     ctx.textAlign="left";
 
     let y = headerHeight + topMargin;
 
     const drawItem = (i)=>{
-      if(i >= items.length){
+      if(i>=items.length){
 
         /* FOOTER */
         ctx.fillStyle="#222";
         ctx.fillRect(0,canvas.height-footerHeight,canvasWidth,footerHeight);
-
         ctx.fillStyle="#fff";
-        ctx.font="22px Arial";
+        ctx.font="20px Arial";
         ctx.fillText(
           "📞 ഹോം ഡെലിവറിക്കായി 9846 606 609 എന്ന നമ്പറിൽ വിളിക്കുക",
-          40,
+          30,
           canvas.height - 35
         );
 
@@ -176,20 +245,14 @@ function generatePoster(){
       const it = items[i];
       const img = new Image();
       img.onload = ()=>{
-        /* ITEM IMAGE (BIG & CLEAR) */
-        ctx.drawImage(img,20,y,300,220);
-
-        /* TEXT */
-        ctx.font="bold 32px Malayalam";
+        ctx.drawImage(img,20,y,260,200);
+        ctx.font="bold 30px Malayalam";
         ctx.fillStyle="#000";
-        ctx.fillText(it.ml,350,y+70);
-
-        ctx.font="22px Arial";
-        ctx.fillText(it.en,350,y+110);
-
-        ctx.font="bold 26px Arial";
-        ctx.fillText("₹ "+it.price,350,y+165);
-
+        ctx.fillText(it.ml,300,y+70);
+        ctx.font="20px Arial";
+        ctx.fillText(it.en,300,y+110);
+        ctx.font="bold 24px Arial";
+        ctx.fillText("₹ "+it.price,300,y+155);
         y += itemBlockHeight;
         drawItem(i+1);
       };
