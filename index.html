@@ -40,11 +40,11 @@ canvas{display:none;}
 <!-- ITEM IMAGE -->
 <input type="file" id="photo" accept="image/*" capture="environment">
 
-<!-- MALAYALAM ONLY SELECT -->
+<!-- MALAYALAM SELECT -->
 <input list="mlList" id="nameML" placeholder="ഇനത്തിന്റെ പേര് (Malayalam)">
 <datalist id="mlList"></datalist>
 
-<!-- ENGLISH (AUTO / REQUIRED FOR NEW ITEM) -->
+<!-- ENGLISH (AUTO) -->
 <input id="nameEN" placeholder="Item Name (English)">
 
 <input id="price" placeholder="വില (₹ / Kg)">
@@ -63,14 +63,13 @@ canvas{display:none;}
 let items = [];
 let posterURL = "";
 
-/* ===== PRE-LIST STORAGE ===== */
+/* ===== PRE-LIST ===== */
 let preList = JSON.parse(localStorage.getItem("itemPreList")) || [];
 
 const mlInput = document.getElementById("nameML");
 const enInput = document.getElementById("nameEN");
 const mlList = document.getElementById("mlList");
 
-/* REFRESH MALAYALAM LIST ONLY */
 function refreshPreList(){
   mlList.innerHTML = "";
   preList.forEach(it=>{
@@ -79,14 +78,10 @@ function refreshPreList(){
 }
 refreshPreList();
 
-/* AUTO FILL ENGLISH WHEN MALAYALAM SELECTED */
+/* AUTO FILL ENGLISH */
 mlInput.addEventListener("change", ()=>{
-  const found = preList.find(i=>i.ml === mlInput.value);
-  if(found){
-    enInput.value = found.en;
-  }else{
-    enInput.value = "";
-  }
+  const f = preList.find(i=>i.ml === mlInput.value);
+  enInput.value = f ? f.en : "";
 });
 
 /* ADD ITEM */
@@ -101,10 +96,8 @@ function addItem(){
     return;
   }
 
-  // Add to poster items
   items.push({ml,en,price,photo});
 
-  // Save to pre-list if new
   if(!preList.find(i=>i.ml === ml)){
     preList.push({ml,en});
     localStorage.setItem("itemPreList", JSON.stringify(preList));
@@ -129,18 +122,27 @@ function generatePoster(){
 
   const hImg = new Image();
   hImg.onload = ()=>{
-    // HEADER
+    /* HEADER */
     ctx.drawImage(hImg,0,0,1200,280);
 
-    ctx.font="28px Arial";
-    ctx.fillStyle="#000";
-    ctx.fillText(new Date().toLocaleDateString("en-GB"),900,320);
+    /* DATE OVER HEADER (RIGHT SIDE) */
+    const dateText = new Date().toLocaleDateString("en-GB");
+
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(880,20,300,60);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 32px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(dateText, 1030, 62);
+
+    ctx.textAlign = "left";
 
     let y = 360;
 
     const drawItem = (i)=>{
       if(i >= items.length){
-        // FOOTER
+        /* FOOTER */
         ctx.fillStyle="#222";
         ctx.fillRect(0,1480,1200,120);
         ctx.fillStyle="#fff";
@@ -158,10 +160,10 @@ function generatePoster(){
       const it = items[i];
       const img = new Image();
       img.onload = ()=>{
-        // BIG CLEAR IMAGE
+        /* BIG CLEAR IMAGE */
         ctx.drawImage(img,40,y,420,300);
 
-        // TEXT
+        /* TEXT */
         ctx.font="bold 44px Malayalam";
         ctx.fillStyle="#000";
         ctx.fillText(it.ml,500,y+90);
@@ -185,4 +187,3 @@ function generatePoster(){
 
 </body>
 </html>
-
