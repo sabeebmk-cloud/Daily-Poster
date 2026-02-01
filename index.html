@@ -37,14 +37,11 @@ canvas{display:none;}
 
 <h3>🖼️ Daily Price Poster Maker</h3>
 
-<!-- ITEM IMAGE -->
 <input type="file" id="photo" accept="image/*" capture="environment">
 
-<!-- MALAYALAM SELECT -->
 <input list="mlList" id="nameML" placeholder="ഇനത്തിന്റെ പേര് (Malayalam)">
 <datalist id="mlList"></datalist>
 
-<!-- ENGLISH (AUTO) -->
 <input id="nameEN" placeholder="Item Name (English)">
 
 <input id="price" placeholder="വില (₹ / Kg)">
@@ -57,7 +54,7 @@ canvas{display:none;}
 
 <img id="preview">
 
-<canvas id="canvas" width="1200" height="1600"></canvas>
+<canvas id="canvas" width="1200"></canvas>
 
 <script>
 let items = [];
@@ -110,48 +107,67 @@ function addItem(){
   alert("Item Added");
 }
 
-/* GENERATE POSTER */
+/* GENERATE POSTER WITH AUTO HEIGHT */
 function generatePoster(){
-  const ctx = canvas.getContext("2d");
 
+  /* LAYOUT CONSTANTS */
+  const canvasWidth = 1200;
+  const headerHeight = 280;
+  const footerHeight = 120;
+  const itemBlockHeight = 340;
+  const topMargin = 80;
+
+  const totalHeight =
+    headerHeight +
+    topMargin +
+    (items.length * itemBlockHeight) +
+    footerHeight;
+
+  canvas.width = canvasWidth;
+  canvas.height = totalHeight;
+
+  const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
   ctx.fillStyle="#fff";
-  ctx.fillRect(0,0,1200,1600);
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
   const hImg = new Image();
   hImg.onload = ()=>{
-    /* HEADER */
-    ctx.drawImage(hImg,0,0,1200,280);
 
-    /* DATE OVER HEADER (RIGHT SIDE) */
+    /* HEADER */
+    ctx.drawImage(hImg,0,0,canvasWidth,headerHeight);
+
+    /* DATE OVER HEADER (RIGHT) */
     const dateText = new Date().toLocaleDateString("en-GB");
 
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillRect(880,20,300,60);
+    ctx.fillStyle="rgba(0,0,0,0.55)";
+    ctx.fillRect(canvasWidth-320,20,300,60);
 
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 32px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(dateText, 1030, 62);
+    ctx.fillStyle="#fff";
+    ctx.font="bold 32px Arial";
+    ctx.textAlign="center";
+    ctx.fillText(dateText, canvasWidth-170, 62);
+    ctx.textAlign="left";
 
-    ctx.textAlign = "left";
-
-    let y = 360;
+    let y = headerHeight + topMargin;
 
     const drawItem = (i)=>{
       if(i >= items.length){
+
         /* FOOTER */
         ctx.fillStyle="#222";
-        ctx.fillRect(0,1480,1200,120);
+        ctx.fillRect(0,canvas.height-footerHeight,canvasWidth,footerHeight);
+
         ctx.fillStyle="#fff";
         ctx.font="34px Arial";
         ctx.fillText(
           "📞 ഹോം ഡെലിവറിക്കായി 9846 606 609 എന്ന നമ്പറിൽ വിളിക്കുക",
           120,
-          1555
+          canvas.height - 45
         );
+
         posterURL = canvas.toDataURL("image/jpeg",1.0);
         preview.src = posterURL;
         return;
@@ -160,7 +176,7 @@ function generatePoster(){
       const it = items[i];
       const img = new Image();
       img.onload = ()=>{
-        /* BIG CLEAR IMAGE */
+        /* ITEM IMAGE */
         ctx.drawImage(img,40,y,420,300);
 
         /* TEXT */
@@ -174,7 +190,7 @@ function generatePoster(){
         ctx.font="bold 36px Arial";
         ctx.fillText("₹ "+it.price,500,y+210);
 
-        y += 340;
+        y += itemBlockHeight;
         drawItem(i+1);
       };
       img.src = URL.createObjectURL(it.photo);
