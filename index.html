@@ -16,7 +16,7 @@ body{
   background:#f2f2f2;
   padding:10px;
 }
-input, select, button{
+input, button{
   width:100%;
   padding:10px;
   margin:6px 0;
@@ -37,56 +37,56 @@ canvas{display:none;}
 
 <h3>🖼️ Daily Price Poster Maker</h3>
 
+<!-- ITEM IMAGE -->
 <input type="file" id="photo" accept="image/*" capture="environment">
 
+<!-- MALAYALAM ONLY SELECT -->
 <input list="mlList" id="nameML" placeholder="ഇനത്തിന്റെ പേര് (Malayalam)">
 <datalist id="mlList"></datalist>
 
-<input list="enList" id="nameEN" placeholder="Item Name (English)">
-<datalist id="enList"></datalist>
+<!-- ENGLISH (AUTO / REQUIRED FOR NEW ITEM) -->
+<input id="nameEN" placeholder="Item Name (English)">
 
 <input id="price" placeholder="വില (₹ / Kg)">
 
-<button onclick="addItem()">➕ Add Item</button>
+<button onclick="addItem()">➕ Item Add ചെയ്യുക</button>
 
 <hr>
 
-<button onclick="generatePoster()">🖼️ Generate JPG</button>
+<button onclick="generatePoster()">🖼️ Poster തയ്യാറാക്കുക</button>
 
 <img id="preview">
 
-<canvas id="canvas" width="900" height="1300"></canvas>
+<canvas id="canvas" width="1200" height="1600"></canvas>
 
 <script>
 let items = [];
 let posterURL = "";
 
+/* ===== PRE-LIST STORAGE ===== */
 let preList = JSON.parse(localStorage.getItem("itemPreList")) || [];
 
 const mlInput = document.getElementById("nameML");
 const enInput = document.getElementById("nameEN");
 const mlList = document.getElementById("mlList");
-const enList = document.getElementById("enList");
 
-/* PREFILL LOGIC */
+/* REFRESH MALAYALAM LIST ONLY */
 function refreshPreList(){
   mlList.innerHTML = "";
-  enList.innerHTML = "";
   preList.forEach(it=>{
     mlList.innerHTML += `<option value="${it.ml}">`;
-    enList.innerHTML += `<option value="${it.en}">`;
   });
 }
 refreshPreList();
 
-/* AUTO PAIR FILL */
+/* AUTO FILL ENGLISH WHEN MALAYALAM SELECTED */
 mlInput.addEventListener("change", ()=>{
-  const f = preList.find(i=>i.ml === mlInput.value);
-  if(f) enInput.value = f.en;
-});
-enInput.addEventListener("change", ()=>{
-  const f = preList.find(i=>i.en === enInput.value);
-  if(f) mlInput.value = f.ml;
+  const found = preList.find(i=>i.ml === mlInput.value);
+  if(found){
+    enInput.value = found.en;
+  }else{
+    enInput.value = "";
+  }
 });
 
 /* ADD ITEM */
@@ -97,13 +97,15 @@ function addItem(){
   const photo = document.getElementById("photo").files[0];
 
   if(!ml || !en || !price || !photo){
-    alert("Malayalam + English + price + photo നൽകണം");
+    alert("Malayalam, English, price, photo എല്ലാം നൽകണം");
     return;
   }
 
+  // Add to poster items
   items.push({ml,en,price,photo});
 
-  if(!preList.find(i=>i.ml===ml && i.en===en)){
+  // Save to pre-list if new
+  if(!preList.find(i=>i.ml === ml)){
     preList.push({ml,en});
     localStorage.setItem("itemPreList", JSON.stringify(preList));
     refreshPreList();
@@ -115,30 +117,40 @@ function addItem(){
   alert("Item Added");
 }
 
-/* POSTER */
+/* GENERATE POSTER */
 function generatePoster(){
   const ctx = canvas.getContext("2d");
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
   ctx.fillStyle="#fff";
-  ctx.fillRect(0,0,900,1300);
+  ctx.fillRect(0,0,1200,1600);
 
   const hImg = new Image();
   hImg.onload = ()=>{
-    ctx.drawImage(hImg,0,0,900,240);
+    // HEADER
+    ctx.drawImage(hImg,0,0,1200,280);
 
-    ctx.font="24px Arial";
+    ctx.font="28px Arial";
     ctx.fillStyle="#000";
-    ctx.fillText(new Date().toLocaleDateString("en-GB"),700,270);
+    ctx.fillText(new Date().toLocaleDateString("en-GB"),900,320);
 
-    let y = 300;
+    let y = 360;
 
     const drawItem = (i)=>{
-      if(i>=items.length){
+      if(i >= items.length){
+        // FOOTER
         ctx.fillStyle="#222";
-        ctx.fillRect(0,1200,900,100);
+        ctx.fillRect(0,1480,1200,120);
         ctx.fillStyle="#fff";
-        ctx.font="28px Arial";
-        ctx.fillText("📞 ഹോം ഡെലിവറിക്കായി 9846 606 609 എന്ന നമ്പറിൽ വിളിക്കുക",90,1260);
-        posterURL = canvas.toDataURL("image/jpeg",1);
+        ctx.font="34px Arial";
+        ctx.fillText(
+          "📞 ഹോം ഡെലിവറിക്കായി 9846 606 609 എന്ന നമ്പറിൽ വിളിക്കുക",
+          120,
+          1555
+        );
+        posterURL = canvas.toDataURL("image/jpeg",1.0);
         preview.src = posterURL;
         return;
       }
@@ -146,19 +158,21 @@ function generatePoster(){
       const it = items[i];
       const img = new Image();
       img.onload = ()=>{
-        ctx.drawImage(img,30,y,280,200);
+        // BIG CLEAR IMAGE
+        ctx.drawImage(img,40,y,420,300);
 
-        ctx.font="bold 38px Malayalam";
+        // TEXT
+        ctx.font="bold 44px Malayalam";
         ctx.fillStyle="#000";
-        ctx.fillText(it.ml,340,y+60);
+        ctx.fillText(it.ml,500,y+90);
 
-        ctx.font="26px Arial";
-        ctx.fillText(it.en,340,y+100);
+        ctx.font="30px Arial";
+        ctx.fillText(it.en,500,y+140);
 
-        ctx.font="bold 32px Arial";
-        ctx.fillText("₹ "+it.price,340,y+150);
+        ctx.font="bold 36px Arial";
+        ctx.fillText("₹ "+it.price,500,y+210);
 
-        y += 230;
+        y += 340;
         drawItem(i+1);
       };
       img.src = URL.createObjectURL(it.photo);
@@ -171,3 +185,4 @@ function generatePoster(){
 
 </body>
 </html>
+
