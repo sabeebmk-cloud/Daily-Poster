@@ -27,11 +27,15 @@ button{
   border:none;
   border-radius:6px;
 }
-.list-item{
+.section{
   background:#fff;
-  padding:8px;
-  margin:6px 0;
+  padding:10px;
   border-radius:6px;
+  margin-bottom:10px;
+}
+.list-item{
+  border-bottom:1px solid #ddd;
+  padding:6px 0;
   font-size:14px;
 }
 .list-item b{
@@ -39,13 +43,13 @@ button{
 }
 .list-actions button{
   width:auto;
-  padding:6px 10px;
-  font-size:14px;
-  margin-right:5px;
+  padding:4px 8px;
+  font-size:13px;
+  margin-right:4px;
 }
+.small{font-size:13px;color:#555;}
 img{width:100%; margin-top:10px;}
 canvas{display:none;}
-.small{font-size:13px;color:#555;}
 </style>
 </head>
 
@@ -53,29 +57,33 @@ canvas{display:none;}
 
 <h3>🖼️ Daily Price Poster Maker</h3>
 
+<!-- ================= ADD ITEM ================= -->
+<div class="section">
+<h4>➕ Daily Item Add</h4>
+
 <input type="file" id="photo" accept="image/*" capture="environment">
 
-<!-- MALAYALAM SELECT -->
 <input list="mlList" id="nameML" placeholder="ഇനത്തിന്റെ പേര് (Malayalam)">
 <datalist id="mlList"></datalist>
 
-<!-- ENGLISH AUTO -->
 <input id="nameEN" placeholder="Item Name (English)">
-
-<!-- PRICE (NOT STORED ANYWHERE) -->
 <input id="price" placeholder="വില (₹ / Kg)">
 
 <button onclick="addItem()">➕ Item Add ചെയ്യുക</button>
-<div class="small">
-ℹ️ Price pre-list-ൽ save ആവില്ല. ഓരോ ദിവസവും type ചെയ്യണം.
+<div class="small">ℹ️ Price pre-list-ൽ save ആവില്ല</div>
 </div>
 
-<hr>
-
-<h4>📋 Added Items</h4>
+<!-- ================= TODAY ITEMS ================= -->
+<div class="section">
+<h4>📋 Today Items</h4>
 <div id="itemList"></div>
+</div>
 
-<hr>
+<!-- ================= PRE-LIST MANAGER ================= -->
+<div class="section">
+<h4>🗂️ Pre-List Manager</h4>
+<div id="preListManager"></div>
+</div>
 
 <button onclick="generatePoster()">🖼️ Poster തയ്യാറാക്കുക</button>
 
@@ -84,183 +92,170 @@ canvas{display:none;}
 <canvas id="canvas"></canvas>
 
 <script>
+/* ================= STATE ================= */
 let items = [];
 let posterURL = "";
+let preList = [];
 
-/* ===== PRE-LIST (NAME ONLY) ===== */
-let preList = JSON.parse(localStorage.getItem("itemPreList")) || [];
-
+/* ================= ELEMENTS ================= */
 const mlInput = document.getElementById("nameML");
 const enInput = document.getElementById("nameEN");
 const priceInput = document.getElementById("price");
 const mlList = document.getElementById("mlList");
 const itemListDiv = document.getElementById("itemList");
+const preListManagerDiv = document.getElementById("preListManager");
 
-/* REFRESH MALAYALAM LIST */
-function refreshPreList(){
-  mlList.innerHTML = "";
-  preList.forEach(it=>{
-    mlList.innerHTML += `<option value="${it.ml}">`;
-  });
-}
-refreshPreList();
-
-/* AUTO FILL ENGLISH (PRICE NOT TOUCHED) */
-mlInput.addEventListener("change", ()=>{
-  const found = preList.find(i=>i.ml === mlInput.value);
-  enInput.value = found ? found.en : "";
+/* ================= LOAD PRE-LIST ================= */
+document.addEventListener("DOMContentLoaded",()=>{
+  const stored = localStorage.getItem("itemPreList");
+  if(stored){
+    try{ preList = JSON.parse(stored); }catch{ preList=[]; }
+  }
+  refreshPreList();
+  renderPreListManager();
 });
 
-/* ADD ITEM */
-function addItem(){
-  const ml = mlInput.value.trim();
-  const en = enInput.value.trim();
-  const price = priceInput.value.trim();
-  const photo = document.getElementById("photo").files[0];
+/* ================= PRE-LIST REFRESH ================= */
+function refreshPreList(){
+  mlList.innerHTML="";
+  preList.forEach(it=>{
+    const o=document.createElement("option");
+    o.value=it.ml;
+    mlList.appendChild(o);
+  });
+}
 
-  if(!ml || !en || !price || !photo){
+/* ================= AUTO FILL ENGLISH ================= */
+mlInput.addEventListener("input",()=>{
+  const f = preList.find(i=>i.ml===mlInput.value.trim());
+  enInput.value = f ? f.en : "";
+});
+
+/* ================= ADD ITEM ================= */
+function addItem(){
+  const ml=mlInput.value.trim();
+  const en=enInput.value.trim();
+  const price=priceInput.value.trim();
+  const photo=document.getElementById("photo").files[0];
+
+  if(!ml||!en||!price||!photo){
     alert("Malayalam, English, price, photo എല്ലാം നൽകണം");
     return;
   }
 
-  /* ADD TO CURRENT POSTER ITEMS (PRICE TEMP ONLY) */
   items.push({ml,en,price,photo});
 
-  /* SAVE ONLY NAME PAIR TO PRE-LIST */
-  if(!preList.find(i=>i.ml === ml)){
+  if(!preList.find(i=>i.ml===ml)){
     preList.push({ml,en});
-    localStorage.setItem("itemPreList", JSON.stringify(preList));
-    refreshPreList();
+    savePreList();
   }
 
-  mlInput.value = "";
-  enInput.value = "";
-  priceInput.value = "";
-  document.getElementById("photo").value = "";
-
+  mlInput.value=enInput.value=priceInput.value="";
+  document.getElementById("photo").value="";
   renderItemList();
 }
 
-/* RENDER ITEM LIST */
+/* ================= SAVE PRE-LIST ================= */
+function savePreList(){
+  localStorage.setItem("itemPreList",JSON.stringify(preList));
+  refreshPreList();
+  renderPreListManager();
+}
+
+/* ================= TODAY ITEM LIST ================= */
 function renderItemList(){
-  itemListDiv.innerHTML = "";
-  items.forEach((it, i)=>{
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `
+  itemListDiv.innerHTML="";
+  items.forEach((it,i)=>{
+    const d=document.createElement("div");
+    d.className="list-item";
+    d.innerHTML=`
       <b>${it.ml}</b> – ${it.en} – ₹${it.price}
       <div class="list-actions">
         <button onclick="moveUp(${i})">⬆️</button>
         <button onclick="moveDown(${i})">⬇️</button>
         <button onclick="deleteItem(${i})">❌</button>
-      </div>
-    `;
-    itemListDiv.appendChild(div);
+      </div>`;
+    itemListDiv.appendChild(d);
   });
 }
+function deleteItem(i){ items.splice(i,1); renderItemList(); }
+function moveUp(i){ if(i>0){[items[i-1],items[i]]=[items[i],items[i-1]];renderItemList();}}
+function moveDown(i){ if(i<items.length-1){[items[i+1],items[i]]=[items[i],items[i+1]];renderItemList();}}
 
-/* DELETE ITEM */
-function deleteItem(index){
-  items.splice(index,1);
-  renderItemList();
+/* ================= PRE-LIST MANAGER ================= */
+function renderPreListManager(){
+  preListManagerDiv.innerHTML="";
+  preList.forEach((it,i)=>{
+    const d=document.createElement("div");
+    d.className="list-item";
+    d.innerHTML=`
+      <input value="${it.ml}" onchange="editPreList(${i},this.value,'ml')">
+      <input value="${it.en}" onchange="editPreList(${i},this.value,'en')">
+      <button onclick="deletePreList(${i})">❌</button>
+    `;
+    preListManagerDiv.appendChild(d);
+  });
+}
+function editPreList(i,val,type){
+  preList[i][type]=val.trim();
+  savePreList();
+}
+function deletePreList(i){
+  if(confirm("Delete this item from pre-list?")){
+    preList.splice(i,1);
+    savePreList();
+  }
 }
 
-/* MOVE UP */
-function moveUp(index){
-  if(index===0) return;
-  [items[index-1], items[index]] = [items[index], items[index-1]];
-  renderItemList();
-}
-
-/* MOVE DOWN */
-function moveDown(index){
-  if(index===items.length-1) return;
-  [items[index+1], items[index]] = [items[index], items[index+1]];
-  renderItemList();
-}
-
-/* GENERATE POSTER (750px WIDTH, AUTO HEIGHT) */
+/* ================= POSTER ================= */
 function generatePoster(){
-
-  const canvasWidth = 750;
-  const headerHeight = 190;
-  const footerHeight = 90;
-  const itemBlockHeight = 250;
-  const topMargin = 50;
-
-  const totalHeight =
-    headerHeight +
-    topMargin +
-    (items.length * itemBlockHeight) +
-    footerHeight;
-
-  canvas.width = canvasWidth;
-  canvas.height = totalHeight;
-
-  const ctx = canvas.getContext("2d");
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-
+  const canvasWidth=750,headerHeight=190,footerHeight=90,itemBlockHeight=250,topMargin=50;
+  canvas.width=canvasWidth;
+  canvas.height=headerHeight+topMargin+(items.length*itemBlockHeight)+footerHeight;
+  const ctx=canvas.getContext("2d");
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality="high";
   ctx.fillStyle="#fff";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  const hImg = new Image();
-  hImg.onload = ()=>{
-
-    /* HEADER */
+  const hImg=new Image();
+  hImg.onload=()=>{
     ctx.drawImage(hImg,0,0,canvasWidth,headerHeight);
-
-    /* DATE – CENTER OVER HEADER */
-    const dateText = new Date().toLocaleDateString("en-GB");
+    const d=new Date().toLocaleDateString("en-GB");
     ctx.fillStyle="rgba(0,0,0,0.55)";
     ctx.fillRect((canvasWidth-220)/2,20,220,44);
-
     ctx.fillStyle="#fff";
     ctx.font="bold 22px Arial";
     ctx.textAlign="center";
-    ctx.fillText(dateText, canvasWidth/2, 50);
+    ctx.fillText(d,canvasWidth/2,50);
     ctx.textAlign="left";
 
-    let y = headerHeight + topMargin;
-
-    const drawItem = (i)=>{
-      if(i>=items.length){
-
-        /* FOOTER */
-        ctx.fillStyle="#222";
-        ctx.fillRect(0,canvas.height-footerHeight,canvasWidth,footerHeight);
-        ctx.fillStyle="#fff";
-        ctx.font="20px Arial";
-        ctx.fillText(
-          "📞 ഹോം ഡെലിവറിക്കായി 9846 606 609 എന്ന നമ്പറിൽ വിളിക്കുക",
-          30,
-          canvas.height - 35
-        );
-
-        posterURL = canvas.toDataURL("image/jpeg",1.0);
-        preview.src = posterURL;
-        return;
-      }
-
-      const it = items[i];
-      const img = new Image();
-      img.onload = ()=>{
+    let y=headerHeight+topMargin;
+    items.forEach(it=>{
+      const img=new Image();
+      img.onload=()=>{
         ctx.drawImage(img,20,y,260,200);
         ctx.font="bold 30px Malayalam";
-        ctx.fillStyle="#000";
         ctx.fillText(it.ml,300,y+70);
         ctx.font="20px Arial";
         ctx.fillText(it.en,300,y+110);
         ctx.font="bold 24px Arial";
         ctx.fillText("₹ "+it.price,300,y+155);
-        y += itemBlockHeight;
-        drawItem(i+1);
       };
-      img.src = URL.createObjectURL(it.photo);
-    };
-    drawItem(0);
+      img.src=URL.createObjectURL(it.photo);
+      y+=itemBlockHeight;
+    });
+
+    ctx.fillStyle="#222";
+    ctx.fillRect(0,canvas.height-footerHeight,canvasWidth,footerHeight);
+    ctx.fillStyle="#fff";
+    ctx.font="20px Arial";
+    ctx.fillText("📞 ഹോം ഡെലിവറിക്കായി വിളിക്കുക 9846 606 609 ",30,canvas.height-35);
+
+    posterURL=canvas.toDataURL("image/jpeg",1);
+    preview.src=posterURL;
   };
-  hImg.src = "header.jpg";
+  hImg.src="header.jpg";
 }
 </script>
 
