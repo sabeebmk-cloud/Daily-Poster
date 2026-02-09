@@ -10,12 +10,41 @@
   font-family:'Malayalam';
   src:url('fonts/NotoSansMalayalam-Regular.ttf');
 }
-body{font-family:Arial;background:#f2f2f2;padding:10px;}
-input,button,select{width:100%;padding:10px;margin:6px 0;font-size:16px;}
-button{background:#0a7cff;color:#fff;border:none;border-radius:6px;}
-.section{background:#fff;padding:10px;border-radius:6px;margin-bottom:10px;}
-.list-item{border-bottom:1px solid #ddd;padding:6px 0;font-size:14px;}
-img{width:100%;margin-top:10px;}
+body{
+  font-family:Arial, sans-serif;
+  background:#f2f2f2;
+  padding:10px;
+}
+input,button,select{
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  font-size:16px;
+}
+button{
+  background:#0a7cff;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+}
+.section{
+  background:#fff;
+  padding:10px;
+  border-radius:6px;
+  margin-bottom:10px;
+}
+.list-item{
+  border-bottom:1px solid #ddd;
+  padding:6px 0;
+  font-size:14px;
+}
+.list-item button{
+  margin-left:6px;
+}
+img{
+  width:100%;
+  margin-top:10px;
+}
 canvas{display:none;}
 .small{font-size:13px;color:#555;}
 </style>
@@ -25,6 +54,7 @@ canvas{display:none;}
 
 <h3>🖼️ Daily Price Poster Maker</h3>
 
+<!-- ================= ADD ITEM ================= -->
 <div class="section">
 <h4>➕ Daily Item</h4>
 
@@ -40,11 +70,13 @@ canvas{display:none;}
 <div class="small">ℹ️ Item name മാത്രം pre-list-ൽ save ചെയ്യും</div>
 </div>
 
+<!-- ================= TODAY ITEMS ================= -->
 <div class="section">
 <h4>📋 Today Items</h4>
 <div id="itemList"></div>
 </div>
 
+<!-- ================= PRE-LIST ================= -->
 <div class="section">
 <h4>🗂️ Pre-List (Memory)</h4>
 <input id="preListSearch" placeholder="🔍 Search"
@@ -52,6 +84,7 @@ canvas{display:none;}
 <div id="preListManager"></div>
 </div>
 
+<!-- ================= SIZE ================= -->
 <div class="section">
 <h4>📐 WhatsApp Size</h4>
 <select id="waSize">
@@ -70,7 +103,7 @@ canvas{display:none;}
 let items = [];
 let preList = [];
 
-/* ================= CONSTANT KEY ================= */
+/* ================= STORAGE KEY ================= */
 const PRELIST_KEY = "DAILY_POSTER_PRELIST_V1";
 
 /* ================= ELEMENTS ================= */
@@ -81,13 +114,13 @@ const mlList = document.getElementById("mlList");
 const itemListDiv = document.getElementById("itemList");
 const preListManagerDiv = document.getElementById("preListManager");
 
-/* ================= LOAD PRE-LIST (SAFE) ================= */
+/* ================= LOAD PRE-LIST ================= */
 function loadPreList(){
   try{
     const raw = localStorage.getItem(PRELIST_KEY);
     preList = raw ? JSON.parse(raw) : [];
     if(!Array.isArray(preList)) preList = [];
-  }catch(e){
+  }catch{
     preList = [];
     localStorage.removeItem(PRELIST_KEY);
   }
@@ -99,21 +132,18 @@ function savePreList(){
   rebuildPreListUI();
 }
 
-/* ================= REBUILD ALL PRE-LIST UI ================= */
+/* ================= BUILD PRE-LIST UI ================= */
 function rebuildPreListUI(){
-  // datalist
   mlList.innerHTML="";
   preList.forEach(it=>{
     const o=document.createElement("option");
     o.value=it.ml;
     mlList.appendChild(o);
   });
-
-  // manager list
   renderPreList("");
 }
 
-/* ================= INIT APP ================= */
+/* ================= INIT ================= */
 document.addEventListener("DOMContentLoaded",()=>{
   loadPreList();
   rebuildPreListUI();
@@ -133,22 +163,21 @@ function addItem(){
   const photo = document.getElementById("photo").files[0];
 
   if(!ml || !en || !price || !photo){
-    alert("എല്ലാം നൽകണം");
+    alert("എല്ലാ വിവരങ്ങളും നൽകണം");
     return;
   }
 
   items.push({ml,en,price,photo});
 
-  // SAVE TO PRE-LIST (ONLY NAMES)
   if(!preList.find(i=>i.ml===ml)){
     preList.push({ml,en});
     savePreList();
   }
 
-  mlInput.value = "";
-  enInput.value = "";
-  priceInput.value = "";
-  document.getElementById("photo").value = "";
+  mlInput.value="";
+  enInput.value="";
+  priceInput.value="";
+  document.getElementById("photo").value="";
 
   renderTodayList();
 }
@@ -165,13 +194,13 @@ function renderTodayList(){
   });
 }
 
-/* ================= PRE-LIST SEARCH + SELECT ================= */
+/* ================= PRE-LIST SEARCH ================= */
 function renderPreList(q){
+  q=q.toLowerCase();
   preListManagerDiv.innerHTML="";
-  q = q.toLowerCase();
-
   preList.forEach(it=>{
-    if(it.ml.toLowerCase().includes(q) || it.en.toLowerCase().includes(q)){
+    if(it.ml.toLowerCase().includes(q) ||
+       it.en.toLowerCase().includes(q)){
       preListManagerDiv.innerHTML+=`
         <div class="list-item">
           ${it.ml} – ${it.en}
@@ -180,15 +209,114 @@ function renderPreList(q){
     }
   });
 }
-
 function selectPreItem(ml,en){
-  mlInput.value = ml;
-  enInput.value = en;
+  mlInput.value=ml;
+  enInput.value=en;
 }
 
 /* ================= POSTER ================= */
 function generatePoster(){
-  alert("Poster logic unchanged – working as before ✅");
+
+  if(items.length===0){
+    alert("ഇനങ്ങൾ add ചെയ്തിട്ടില്ല");
+    return;
+  }
+
+  const mode = document.getElementById("waSize").value;
+  const canvasWidth = 1080;
+  const headerHeight = mode==="status" ? 280 : 220;
+  const footerHeight = 110;
+  const topMargin = 60;
+  const gap = 24;
+
+  let imageHeights=[];
+  let loaded=0;
+
+  items.forEach((it,i)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const ratio = img.width / img.height;
+      imageHeights[i] = canvasWidth / ratio;
+      loaded++;
+      if(loaded===items.length) drawPoster();
+    };
+    img.src=URL.createObjectURL(it.photo);
+  });
+
+  function drawPoster(){
+
+    let totalHeight = headerHeight + topMargin + footerHeight;
+    imageHeights.forEach(h=> totalHeight += h + gap);
+
+    canvas.width = canvasWidth;
+    canvas.height = totalHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    ctx.fillStyle="#fff";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    const hImg=new Image();
+    hImg.onload=()=>{
+      ctx.drawImage(hImg,0,0,canvasWidth,headerHeight);
+
+      ctx.fillStyle="rgba(0,0,0,0.55)";
+      ctx.fillRect((canvasWidth-320)/2,24,320,60);
+      ctx.fillStyle="#fff";
+      ctx.font="bold 34px Arial";
+      ctx.textAlign="center";
+      ctx.fillText(new Date().toLocaleDateString("en-GB"),
+                   canvasWidth/2,66);
+      ctx.textAlign="left";
+
+      let y = headerHeight + topMargin;
+
+      const drawItem=(i)=>{
+        if(i>=items.length){
+          ctx.fillStyle="#222";
+          ctx.fillRect(0,canvas.height-footerHeight,
+                       canvasWidth,footerHeight);
+          ctx.fillStyle="#fff";
+          ctx.font="28px Arial";
+          ctx.fillText("📞 ഹോം ഡെലിവറിക്കായി 9846 606 609",
+                       40,canvas.height-45);
+          preview.src = canvas.toDataURL("image/jpeg",1);
+          return;
+        }
+
+        const it=items[i];
+        const img=new Image();
+        img.onload=()=>{
+          const h=imageHeights[i];
+          ctx.drawImage(img,0,y,canvasWidth,h);
+
+          ctx.fillStyle="rgba(0,0,0,0.6)";
+          ctx.fillRect(0,y+h-120,canvasWidth,120);
+
+          ctx.fillStyle="#fff";
+          ctx.font="bold 42px Malayalam";
+          ctx.fillText(it.ml,30,y+h-70);
+
+          ctx.font="26px Arial";
+          ctx.fillText(it.en,30,y+h-35);
+
+          ctx.font="bold 40px Arial";
+          ctx.textAlign="right";
+          ctx.fillText("₹ "+it.price,
+                       canvasWidth-30,y+h-60);
+          ctx.textAlign="left";
+
+          y += h + gap;
+          drawItem(i+1);
+        };
+        img.src=URL.createObjectURL(it.photo);
+      };
+      drawItem(0);
+    };
+    hImg.src="header.jpg";
+  }
 }
 </script>
 
